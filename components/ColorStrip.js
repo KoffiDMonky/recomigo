@@ -1,37 +1,27 @@
-import React from 'react';
-import { View, StyleSheet, Platform, Dimensions } from 'react-native';
+import React from "react";
+import { View, StyleSheet, Platform } from "react-native";
 
-// Si tu as déplacé contentData dans un fichier séparé (e.g. data/contentData.js), importe-le :
-// import contentData from '../data/contentData';
+const isIOS = Platform.OS === "ios";
 
-const isIOS = Platform.OS === 'ios';
-
-export default function ColorStrip({ index, data }) {
-  // `data` doit être le tableau `contentData` passé depuis App.js
-  const colors = data[index].stripColors;
-
+export default function ColorStrip({ colors }) {
   return (
-    <View style={styles.stripContainer}>
-      {colors.map((color, i) => (
-        <View
-          key={i}
-          style={[styles.colorBand, { backgroundColor: color }]}
-        />
+    <View style={styles.colorStripContainer}>
+      {colors.map((c, i) => (
+        <View key={i} style={[styles.colorBand, { backgroundColor: c }]} />
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  stripContainer: {
-    position: 'absolute',
+  colorStripContainer: {
+    position: "absolute",
     top: isIOS ? 60 : 0,
     right: 100,
+    height: "100%",
     width: 80,
-    height: '100%',
-    flexDirection: 'row',
+    flexDirection: "row",
     zIndex: 15,
-    transform: [{ rotate: '45deg' }],
   },
   colorBand: {
     flex: 1,
