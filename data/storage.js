@@ -122,6 +122,7 @@ export async function clearAll() {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
     await AsyncStorage.removeItem(INIT_KEY);
+    await AsyncStorage.removeItem('onboarding_completed');
   } catch (e) {
     console.error('Erreur clear storage:', e);
   }

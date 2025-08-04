@@ -41,6 +41,8 @@ import {
   clearAll,
 } from "./../data/storage";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const isIOS = Platform.OS === "ios";
 const { width, height } = Dimensions.get("window");
 
@@ -73,7 +75,7 @@ export default function HomeScreen() {
     }
     setIsHeightCalculated(false);
     try {
-      const stored = await getAllCards([], allowInit);
+      const stored = await getAllCards(contentData, allowInit);
       setCards(stored);
     } catch (error) {
       console.error('Erreur lors du chargement des cartes:', error);
@@ -83,87 +85,71 @@ export default function HomeScreen() {
   }
 
   const handleImageLoad = () => {
-    // This function is no longer directly used for the image count check,
-    // but it's kept as it might be used elsewhere or for future use.
+    setIsHeightCalculated(true);
   };
 
   const handleScroll = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const newIndex = Math.round(offsetY / scrollHeight);
-    if (newIndex !== currentIndex) {
-      setCurrentIndex(newIndex);
-      HapticService.cardSwipe();
+    const contentOffset = event.nativeEvent.contentOffset.y;
+    const index = Math.floor(contentOffset / scrollHeight);
+    if (index !== currentIndex && index >= 0 && index < getFilteredCards().length) {
+      setCurrentIndex(index);
     }
   };
 
   const handleLayout = (e) => {
-    const height = e.nativeEvent.layout.height;
+    const { height } = e.nativeEvent.layout;
     setScrollHeight(height);
     setIsHeightCalculated(true);
   };
 
   const toggleModal = () => {
-    HapticService.modalOpen();
     setModalVisible(!isModalVisible);
   };
 
   const handleLoadExamples = async () => {
-    HapticService.buttonPress();
-    const enriched = contentData.map(enrichCard);
-    await saveCards(enriched);
-    await loadCards();
-    setCurrentIndex(0);
-    HapticService.success();
+    try {
+      await clearAll();
+      await loadCards({ allowInit: true });
+      setModalVisible(false);
+    } catch (error) {
+      console.error('Erreur lors du chargement des exemples:', error);
+    }
   };
 
   const handleCardLongPress = (card) => {
-    HapticService.medium();
     setSelectedCard(card);
+    setEditFormData(card);
     setEditModalVisible(true);
   };
 
   const handleDeleteCard = async () => {
     if (selectedCard) {
-      HapticService.warning();
-      Alert.alert(
-        "Supprimer la carte",
-        `Êtes-vous sûr de vouloir supprimer "${selectedCard.title}" ?`,
-        [
-          { text: "Annuler", style: "cancel" },
-          {
-            text: "Supprimer",
-            style: "destructive",
-            onPress: async () => {
-              HapticService.cardDelete();
-              await deleteCard(selectedCard.id);
-              await loadCards();
-              setEditModalVisible(false);
-              setSelectedCard(null);
-              setEditFormData(null);
-              HapticService.success();
-            },
-          },
-        ]
-      );
+      try {
+        await deleteCard(selectedCard.id);
+        await loadCards();
+        setEditModalVisible(false);
+        setSelectedCard(null);
+        setEditFormData(null);
+        HapticService.trigger('success');
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        Alert.alert('Erreur', 'Impossible de supprimer la carte');
+      }
     }
   };
 
   const handleShare = () => {
-    HapticService.cardShare();
-    const filteredCards = getFilteredCards();
-    if (filteredCards.length > 0 && filteredCards[currentIndex]) {
-      const currentCard = enrichCard(filteredCards[currentIndex]);
-      ShareService.showShareOptions(currentCard);
+    const currentCard = getFilteredCards()[currentIndex];
+    if (currentCard) {
+      ShareService.shareCard(currentCard);
     }
   };
 
   const toggleSettingsModal = () => {
-    HapticService.modalOpen();
     setSettingsModalVisible(!isSettingsModalVisible);
   };
 
   const handleFilterToggle = (category) => {
-    HapticService.filterChange();
     setActiveFilters(prev => ({
       ...prev,
       [category]: !prev[category]
@@ -171,20 +157,7 @@ export default function HomeScreen() {
   };
 
   const getFilteredCards = () => {
-    // Si aucune catégorie n'est sélectionnée, afficher toutes les cartes
-    const hasActiveFilters = Object.values(activeFilters).some(filter => filter);
-    
-    if (!hasActiveFilters) {
-      console.log('Aucun filtre actif, affichage de toutes les cartes:', cards.length);
-      return cards;
-    }
-    
-    // Sinon, filtrer par les catégories actives
     const filtered = cards.filter(card => activeFilters[card.type]);
-    console.log('Filtres actifs:', activeFilters);
-    console.log('Cartes filtrées:', filtered.length, 'sur', cards.length);
-    console.log('Types des cartes filtrées:', filtered.map(c => c.type));
-    
     return filtered;
   };
 
@@ -203,21 +176,21 @@ export default function HomeScreen() {
       Film: "#E74C3C",
       "Série": "#3498DB",
       Musique: "#9B59B6",
-      Podcast: "#F39C12",
-      Youtube: "#E74C3C",
+      Podcast: "#2ECC71",
+      Youtube: "#F39C12",
     };
-    return colors[category] || "#CCC";
+    return colors[category] || "#000";
   };
 
   const getCategoryIcon = (category) => {
     const icons = {
-      Film: "film",
-      "Série": "tv",
-      Musique: "musical-notes",
-      Podcast: "radio",
+      Film: "film-outline",
+      "Série": "tv-outline",
+      Musique: "musical-notes-outline",
+      Podcast: "radio-outline",
       Youtube: "logo-youtube",
     };
-    return icons[category] || "help-circle";
+    return icons[category] || "help-outline";
   };
 
   // Load cards from storage on mount
@@ -330,9 +303,48 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.clearButton}
               onPress={async () => {
-                await clearAll();
-                await loadCards({ allowInit: false });
-                setCurrentIndex(0);
+                Alert.alert(
+                  "Réinitialiser l'application",
+                  "Cette action va effacer toutes les données et vous faire refaire l'onboarding. Êtes-vous sûr ?",
+                  [
+                    {
+                      text: "Annuler",
+                      style: "cancel"
+                    },
+                    {
+                      text: "Réinitialiser",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await clearAll();
+                          Alert.alert(
+                            "Réinitialisation terminée",
+                            "L'application va se redémarrer. Veuillez fermer complètement l'app et la rouvrir pour voir l'onboarding.",
+                            [
+                              {
+                                text: "OK",
+                                onPress: () => {
+                                  // Forcer un redémarrage en vidant le cache
+                                  if (Platform.OS === 'ios') {
+                                    const Updates = require('expo-updates');
+                                    Updates.reloadAsync();
+                                  } else {
+                                    // Sur Android, on peut essayer de redémarrer
+                                    const Updates = require('expo-updates');
+                                    Updates.reloadAsync();
+                                  }
+                                }
+                              }
+                            ]
+                          );
+                        } catch (error) {
+                          console.error('Erreur lors de la réinitialisation:', error);
+                          Alert.alert('Erreur', 'Impossible de réinitialiser l\'application');
+                        }
+                      }
+                    }
+                  ]
+                );
               }}
             >
               <Ionicons name="trash" size={20} color="#000" />
@@ -634,6 +646,9 @@ export default function HomeScreen() {
               </View>
             </View>
           </Modal>
+
+          {/* Onboarding Modal */}
+          {/* Removed Onboarding component */}
         </>
       )}
     </SafeAreaView>

@@ -142,10 +142,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   nextButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#FBFF29",
   },
   nextButtonText: {
-    color: "white",
+    color: "black",
     fontWeight: "bold",
   },
 });

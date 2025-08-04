@@ -100,7 +100,7 @@ const contentData = [
     stripColors: ["#512DA8", "#9575CD", "#D1C4E9"],
   },
   {
-    type: "YouTube",
+    type: "Youtube",
     title: "Everything is a Remix",
     platform: "YouTube",
     description:
