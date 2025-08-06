@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CategoryStep from "./steps/CategoryStep";
 import InfoStep from "./steps/InfoStep";
 import SummaryStep from "./steps/SummaryStep";
+import HapticService from "../services/HapticService";
 
 const steps = [
   { key: "category", label: "Choisis une catégorie", component: CategoryStep },
@@ -17,33 +18,59 @@ export default function MultiStepForm({ onFinish, onCancel, initialData = {}, sh
 
   const CurrentComponent = steps[currentStep].component;
 
+  // Fonction pour valider les données selon l'étape actuelle
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 0: // Étape Catégorie
+        return !!formData.type && formData.type.trim().length > 0;
+      
+      case 1: // Étape Info
+        // Vérifier que le titre est rempli (champ obligatoire)
+        return !!formData.title && formData.title.trim().length > 0;
+      
+      case 2: // Étape Summary
+        return true; // Toujours valide pour l'étape de récapitulatif
+      
+      default:
+        return false;
+    }
+  };
+
   const handleNext = (data) => {
     const merged = { ...formData, ...data };
     setFormData(merged);
     if (currentStep < steps.length - 1) {
+      HapticService.light();
       setCurrentStep((prev) => prev + 1);
     } else {
+      HapticService.success();
       onFinish(merged);
     }
   };
   
   const handleBack = () => {
     if (currentStep > 0) {
+      HapticService.light();
       setCurrentStep((prev) => prev - 1);
     } else {
+      HapticService.light();
       onCancel();
     }
   };
 
   const handleSave = () => {
+    HapticService.success();
     onFinish(formData);
   };
 
   const handleDelete = () => {
     if (onDelete) {
+      HapticService.heavy();
       onDelete();
     }
   };
+
+  const isNextButtonDisabled = !isStepValid();
 
   return (
     <View style={styles.container}>
@@ -77,7 +104,11 @@ export default function MultiStepForm({ onFinish, onCancel, initialData = {}, sh
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.button, styles.nextButton]} 
+          style={[
+            styles.button, 
+            styles.nextButton,
+            isNextButtonDisabled && styles.nextButtonDisabled
+          ]} 
           onPress={() => {
             if (currentStep < steps.length - 1) {
               handleNext(formData);
@@ -85,8 +116,12 @@ export default function MultiStepForm({ onFinish, onCancel, initialData = {}, sh
               onFinish(formData);
             }
           }}
+          disabled={isNextButtonDisabled}
         >
-          <Text style={styles.nextButtonText}>
+          <Text style={[
+            styles.nextButtonText,
+            isNextButtonDisabled && styles.nextButtonTextDisabled
+          ]}>
             {currentStep < steps.length - 1 ? 'Suivant' : 'Valider'}
           </Text>
         </TouchableOpacity>
@@ -144,8 +179,14 @@ const styles = StyleSheet.create({
   nextButton: {
     backgroundColor: "#FBFF29",
   },
+  nextButtonDisabled: {
+    backgroundColor: "#E0E0E0",
+  },
   nextButtonText: {
     color: "black",
     fontWeight: "bold",
+  },
+  nextButtonTextDisabled: {
+    color: "#999",
   },
 });

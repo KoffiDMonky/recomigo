@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import HomeScreen from "./screens/HomeScreen";
 import OnboardingScreen from "./screens/OnboardingScreen";
 import DeepLinkService from "./services/DeepLinkService";
+import imageCache from "./utils/imageCache";
 
 const Stack = createStackNavigator();
 
@@ -14,6 +15,9 @@ export default function App() {
   useEffect(() => {
     // Initialiser le service de deep linking
     DeepLinkService.init();
+    
+    // Nettoyer le cache d'images au démarrage
+    imageCache.cleanup();
     
     // Vérifier si l'onboarding est terminé
     checkOnboardingStatus();

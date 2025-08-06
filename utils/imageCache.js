@@ -51,7 +51,14 @@ class ImageCache {
     
     // Vérifier si l'entrée n'est pas expirée
     const now = Date.now();
-    return now - cached.timestamp < CACHE_EXPIRY;
+    const isValid = now - cached.timestamp < CACHE_EXPIRY;
+    
+    // Si l'image a échoué, ne pas la considérer comme en cache
+    if (cached.failed) {
+      return false;
+    }
+    
+    return isValid && cached.localUri;
   }
 
   getCached(url) {
@@ -79,6 +86,12 @@ class ImageCache {
         await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
       }
 
+      // Vérifier d'abord si l'URL est accessible
+      const response = await fetch(url, { method: 'HEAD' });
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+
       // Télécharger l'image
       const localUri = `${cacheDir}${key}.jpg`;
       const downloadResult = await FileSystem.downloadAsync(url, localUri);
@@ -97,7 +110,23 @@ class ImageCache {
         throw new Error(`Erreur téléchargement: ${downloadResult.status}`);
       }
     } catch (error) {
-      console.error('❌ Erreur cache image:', error);
+      console.log('⚠️ Erreur cache image:', error.message);
+      
+      // Si c'est une erreur 404 ou autre, marquer comme échoué
+      if (error.message.includes('404') || error.message.includes('Erreur HTTP: 404')) {
+        console.log('🚫 Image non disponible (404), pas de retry');
+      } else {
+        console.log('🚫 Erreur image, pas de retry');
+      }
+      
+      // Marquer comme échoué pour éviter les retries inutiles
+      this.cache.set(key, {
+        localUri: null,
+        timestamp: Date.now(),
+        failed: true
+      });
+      await this.saveCache();
+      
       throw error;
     }
   }
@@ -106,20 +135,25 @@ class ImageCache {
     try {
       const now = Date.now();
       const expiredKeys = [];
+      const failedKeys = [];
       
       for (const [key, data] of this.cache.entries()) {
         if (now - data.timestamp >= CACHE_EXPIRY) {
           expiredKeys.push(key);
         }
+        // Supprimer aussi les entrées marquées comme échouées après un délai
+        if (data.failed && now - data.timestamp >= 24 * 60 * 60 * 1000) { // 24h
+          failedKeys.push(key);
+        }
       }
       
-      // Supprimer les entrées expirées
-      for (const key of expiredKeys) {
+      // Supprimer les entrées expirées et échouées
+      for (const key of [...expiredKeys, ...failedKeys]) {
         this.cache.delete(key);
       }
       
       await this.saveCache();
-      console.log('🧹 Cache nettoyé:', expiredKeys.length, 'entrées supprimées');
+      console.log('🧹 Cache nettoyé:', expiredKeys.length, 'expirées,', failedKeys.length, 'échouées supprimées');
     } catch (error) {
       console.error('❌ Erreur nettoyage cache:', error);
     }

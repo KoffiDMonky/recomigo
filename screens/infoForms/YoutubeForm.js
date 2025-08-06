@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import LinkInput from "./../../components/LinkInput";
 import CustomImagePicker from "./../../components/ImagePicker";
-import { isValidYouTubeUrl } from "./../../utils/youtubeUtils";
+import { isValidYouTubeUrl, getAvailableThumbnailFromUrl } from "./../../utils/youtubeUtils";
 import { getVideoInfoFromUrl, isApiKeyConfigured } from "./../../services/YouTubeService";
 
 export default function YoutubeForm({ formData = {}, onChange, onNext, onBack }) {
@@ -20,50 +20,57 @@ export default function YoutubeForm({ formData = {}, onChange, onNext, onBack })
     recommendedBy: formData.recommendedBy || '',
     image: formData.image || null,
   });
-  const [showError, setShowError] = React.useState(false);
   const [isLoadingVideoInfo, setIsLoadingVideoInfo] = React.useState(false);
-
-  const isTitleValid = !!local.title && local.title.trim().length > 0;
 
   const handleChange = (key, value) => {
     const updated = { ...local, [key]: value };
     setLocal(updated);
     onChange(updated);
-    setShowError(false);
   };
 
   const handleLinkChange = async (text) => {
     handleChange('link', text);
     
     // Récupérer automatiquement les infos YouTube si l'URL est valide
-    if (text && isValidYouTubeUrl(text) && isApiKeyConfigured()) {
+    if (text && isValidYouTubeUrl(text)) {
       setIsLoadingVideoInfo(true);
       try {
-        const videoInfo = await getVideoInfoFromUrl(text);
-        if (videoInfo) {
-          const updated = {
-            ...local,
-            link: text,
-            title: videoInfo.title || local.title,
-            channelTitle: videoInfo.channelTitle,
-            duration: videoInfo.duration,
-          };
-          setLocal(updated);
-          onChange(updated);
+        // Essayer de récupérer les infos via l'API si configurée
+        if (isApiKeyConfigured()) {
+          const videoInfo = await getVideoInfoFromUrl(text);
+          if (videoInfo) {
+            const updated = {
+              ...local,
+              link: text,
+              title: videoInfo.title || local.title,
+              channelTitle: videoInfo.channelTitle,
+              duration: videoInfo.duration,
+            };
+            setLocal(updated);
+            onChange(updated);
+          }
+        } else {
+          // Si pas d'API, essayer de récupérer au moins l'image
+          try {
+            const thumbnailUrl = await getAvailableThumbnailFromUrl(text);
+            if (thumbnailUrl) {
+              const updated = {
+                ...local,
+                link: text,
+                image: thumbnailUrl,
+              };
+              setLocal(updated);
+              onChange(updated);
+            }
+          } catch (imageError) {
+            console.log('❌ Impossible de récupérer l\'image YouTube:', imageError.message);
+          }
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des infos YouTube:', error);
       } finally {
         setIsLoadingVideoInfo(false);
       }
-    }
-  };
-
-  const handleSubmit = () => {
-    if (isTitleValid) {
-      onNext({ ...formData, ...local });
-    } else {
-      setShowError(true);
     }
   };
 
@@ -131,10 +138,6 @@ export default function YoutubeForm({ formData = {}, onChange, onNext, onBack })
         onChange={(imageUri) => handleChange("image", imageUri)}
         placeholder="Ajouter une image personnalisée (optionnel)"
       />
-
-      {showError && !isTitleValid && (
-        <Text style={styles.errorText}>Le titre est obligatoire.</Text>
-      )}
     </ScrollView>
   );
 }

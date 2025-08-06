@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import LinkInput from "./../../components/LinkInput";
+import MovieSearchInput from "./../../components/MovieSearchInput";
 import CustomImagePicker from "./../../components/ImagePicker";
 
 export default function SerieForm({ formData = {}, onChange, onNext, onBack }) {
@@ -20,23 +20,11 @@ export default function SerieForm({ formData = {}, onChange, onNext, onBack }) {
     platform: formData.platform || '',
     image: formData.image || null,
   });
-  const [showError, setShowError] = React.useState(false);
-
-  const isTitleValid = !!local.title && local.title.trim().length > 0;
 
   const handleChange = (key, value) => {
     const updated = { ...local, [key]: value };
     setLocal(updated);
     onChange(updated);
-    setShowError(false);
-  };
-
-  const handleSubmit = () => {
-    if (isTitleValid) {
-      onNext({ ...formData, ...local });
-    } else {
-      setShowError(true);
-    }
   };
 
   return (
@@ -45,6 +33,34 @@ export default function SerieForm({ formData = {}, onChange, onNext, onBack }) {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      {/* Section Lien - En premier */}
+      <MovieSearchInput
+        type="tv"
+        onMovieFound={(movieData) => {
+          // Mettre à jour tous les champs avec les données trouvées
+          const updated = {
+            ...local,
+            title: movieData.title,
+            description: movieData.description,
+            year: movieData.year,
+            genre: movieData.genre,
+            rating: movieData.rating,
+            director: movieData.director,
+            cast: movieData.cast,
+            image: movieData.image,
+            link: `https://www.themoviedb.org/${movieData.mediaType}/${movieData.tmdbId}`,
+          };
+          setLocal(updated);
+          onChange(updated);
+        }}
+      />
+
+      {/* Section Informations - Après le lien */}
+      <Text style={styles.sectionTitle}>📝 Informations de la série</Text>
+      <Text style={styles.sectionDescription}>
+        Remplissez les informations de la série
+      </Text>
+
       <Text style={styles.label}>Titre de la série *</Text>
       <TextInput
         style={styles.input}
@@ -86,20 +102,11 @@ export default function SerieForm({ formData = {}, onChange, onNext, onBack }) {
         placeholder="ex : Adrien"
       />
 
-      <LinkInput
-        value={local.link}
-        onChange={(text) => handleChange("link", text)}
-      />
-
       <CustomImagePicker
         value={local.image}
         onChange={(imageUri) => handleChange("image", imageUri)}
         placeholder="Ajouter une image pour la série"
       />
-
-      {showError && !isTitleValid && (
-        <Text style={styles.errorText}>Le titre est obligatoire.</Text>
-      )}
     </ScrollView>
   );
 }
@@ -110,7 +117,25 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "flex-start",
   },
-  label: { fontSize: 16, fontWeight: 'bold', marginTop: 12 },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 24,
+    marginBottom: 8,
+    color: '#333',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  label: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    marginTop: 12,
+    color: '#333',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#CCC',

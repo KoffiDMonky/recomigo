@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, PanResponder } from 'react-native';
+import HapticService from '../services/HapticService';
 
 export default function DragHandle({ onClose, style }) {
   const panResponder = PanResponder.create({
@@ -11,6 +12,7 @@ export default function DragHandle({ onClose, style }) {
     onPanResponderRelease: (_, gestureState) => {
       // Si on a glissé vers le bas de plus de 100px, fermer le modal
       if (gestureState.dy > 100) {
+        HapticService.light();
         onClose();
       }
     },

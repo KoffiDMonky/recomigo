@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CATEGORY_CONFIG } from "./categories";
-import { getThumbnailFromUrl, isValidYouTubeUrl } from "../utils/youtubeUtils";
+import { CATEGORY_CONFIG } from './categories';
 
 const STORAGE_KEY = 'recomigo_cards';
 const INIT_KEY = 'recomigo_initialized';
@@ -132,17 +131,15 @@ export function enrichCard(card) {
   const category = card.type;
   const config = CATEGORY_CONFIG[category];
   
-  // Récupérer automatiquement la miniature YouTube si c'est une vidéo YouTube
+  // Ne pas essayer de récupérer les images YouTube ici
+  // Elles seront récupérées de manière asynchrone dans ContentCard
   let image = card.image;
-  if (!image && card.link && isValidYouTubeUrl(card.link)) {
-    image = getThumbnailFromUrl(card.link, 'maxres');
-  }
   
   if (config) {
     return {
       ...card,
       ...config,
-      // Utiliser l'image fournie, la miniature YouTube, ou null pour l'icône
+      // Utiliser l'image fournie, ou null pour l'icône
       image: image || null,
     };
   }

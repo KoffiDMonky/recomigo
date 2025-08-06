@@ -92,6 +92,7 @@ export default function HomeScreen() {
     const contentOffset = event.nativeEvent.contentOffset.y;
     const index = Math.floor(contentOffset / scrollHeight);
     if (index !== currentIndex && index >= 0 && index < getFilteredCards().length) {
+      HapticService.light();
       setCurrentIndex(index);
     }
   };
@@ -117,6 +118,7 @@ export default function HomeScreen() {
   };
 
   const handleCardLongPress = (card) => {
+    HapticService.medium();
     setSelectedCard(card);
     setEditFormData(card);
     setEditModalVisible(true);
@@ -130,7 +132,7 @@ export default function HomeScreen() {
         setEditModalVisible(false);
         setSelectedCard(null);
         setEditFormData(null);
-        HapticService.trigger('success');
+        HapticService.success();
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
         Alert.alert('Erreur', 'Impossible de supprimer la carte');
@@ -150,6 +152,7 @@ export default function HomeScreen() {
   };
 
   const handleFilterToggle = (category) => {
+    HapticService.light();
     setActiveFilters(prev => ({
       ...prev,
       [category]: !prev[category]
@@ -293,13 +296,13 @@ export default function HomeScreen() {
           )}
           {/* Header */}
           <View style={styles.devButton}>
-            <TouchableOpacity
+{/*             <TouchableOpacity
               style={styles.loadButton}
               onPress={handleLoadExamples}
             >
               <Ionicons name="cloud-download-outline" size={20} color="#000" />
             </TouchableOpacity>
-
+ */}
             <TouchableOpacity
               style={styles.clearButton}
               onPress={async () => {

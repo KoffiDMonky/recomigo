@@ -9,10 +9,6 @@ export default function CategoryStep({ formData = {}, onChange, onNext, onBack }
 const handleSelect = (category) => {
   const updated = { ...formData, type: category };
   onChange(updated);
-  // Ne pas passer automatiquement à l'étape suivante si on est en mode édition
-  if (!formData.type) {
-    onNext(updated);
-  }
 };
 
 const getCategoryColor = (category) => {

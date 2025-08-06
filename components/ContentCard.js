@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, Linking, Alert, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
-import MaskedView from "@react-native-masked-view/masked-view";
 import { Ionicons } from "@expo/vector-icons";
+import * as Linking from 'expo-linking';
 import imageCache from "../utils/imageCache";
+import { CATEGORY_CONFIG } from "../data/categories";
+import { isValidYouTubeUrl, getAvailableThumbnailFromUrl } from "../utils/youtubeUtils";
 
 function hexToRgba(hex, alpha = 1) {
   const normalized = hex.replace("#", "");
@@ -19,7 +28,23 @@ function hexToRgba(hex, alpha = 1) {
 function formatDuration(duration) {
   if (!duration) return '';
   
-  // Format ISO 8601: PT1H2M3S
+  // Si c'est un nombre (millisecondes Spotify)
+  if (typeof duration === 'number') {
+    const totalSeconds = Math.floor(duration / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  }
+  
+  // Format ISO 8601: PT1H2M3S (YouTube)
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return duration;
   
@@ -51,8 +76,9 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
             const cachedUri = await imageCache.cacheImage(item.image);
             setCachedImageUri(cachedUri);
           } catch (error) {
-            console.error('❌ Erreur cache image:', error);
-            setCachedImageUri(item.image); // Fallback vers l'URL originale
+            console.log('⚠️ Erreur cache image:', error.message);
+            // En cas d'erreur, ne pas afficher d'image (icône de catégorie sera affichée)
+            setCachedImageUri(null);
           } finally {
             setIsLoadingImage(false);
           }
@@ -61,12 +87,35 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
           setCachedImageUri(item.image);
         }
       } else {
-        setCachedImageUri(null);
+        // Pas d'image - essayer de récupérer une image YouTube si c'est une carte YouTube
+        if (item.type === 'Youtube' && item.link && isValidYouTubeUrl(item.link)) {
+          setIsLoadingImage(true);
+          try {
+            const thumbnailUrl = await getAvailableThumbnailFromUrl(item.link);
+            if (thumbnailUrl) {
+              // Mettre en cache l'image YouTube trouvée
+              const cachedUri = await imageCache.cacheImage(thumbnailUrl);
+              setCachedImageUri(cachedUri);
+            } else {
+              // Pas d'image YouTube disponible - afficher l'icône de catégorie
+              setCachedImageUri(null);
+            }
+          } catch (error) {
+            console.log('⚠️ Erreur récupération image YouTube:', error.message);
+            // En cas d'erreur - afficher l'icône de catégorie
+            setCachedImageUri(null);
+          } finally {
+            setIsLoadingImage(false);
+          }
+        } else {
+          // Pas d'image et pas de carte YouTube - afficher l'icône de catégorie
+          setCachedImageUri(null);
+        }
       }
     };
 
     loadCachedImage();
-  }, [item.image]);
+  }, [item.image, item.type, item.link]);
   
   if (!item || !item.type ) return null;
 
@@ -153,22 +202,8 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
           colors={["transparent", hexToRgba(item.categoryColor || bgArray[1], 0.85)]}
           style={styles.overlay}
         >
-          <MaskedView
-            style={styles.blurWrapper}
-            maskElement={
-              <LinearGradient
-                colors={["transparent", "black"]}
-                locations={[0.4, 1]}
-                style={StyleSheet.absoluteFill}
-              />
-            }
-          >
-            <BlurView
-              intensity={5}
-              tint="light"
-              style={StyleSheet.absoluteFill}
-            />
-          </MaskedView>
+          {/* The MaskedView and BlurView are removed as per the new_code,
+              as they are not present in the new_code. */}
           <View style={styles.contentInfo}>
             <Text style={styles.contentTitle}>{item.title}</Text>
             {item.director && (
@@ -200,15 +235,21 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
                 Durée : {formatDuration(item.duration)}
               </Text>
             )}
-            {item.description && (
-              <Text style={styles.contentDescription}>
+            {item.description && item.type !== 'Musique' && (
+              <Text 
+                style={styles.contentDescription}
+                numberOfLines={3}
+                ellipsizeMode="tail"
+              >
                 &quot;{item.description}&quot;
               </Text>
             )}
             <View style={styles.bottomContainer}>
-              <Text style={[styles.recommendedBy, { color: "white" }]}>
-                Recommandé par {item.recommendedBy || "Adrien"}
-              </Text>
+              {item.recommendedBy && item.recommendedBy.trim() && (
+                <Text style={[styles.recommendedBy, { color: "white" }]}>
+                  Recommandé par {item.recommendedBy}
+                </Text>
+              )}
               {item.link && (
                 <TouchableOpacity 
                   style={styles.discoverButton}
@@ -328,6 +369,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 20,
     fontStyle: "italic",
+    flexShrink: 1,
   },
   recommendedBy: {
     fontSize: 14,
