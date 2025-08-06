@@ -128,6 +128,15 @@ export async function clearAll() {
 }
 
 export function enrichCard(card) {
+  // Vérification de sécurité pour éviter l'erreur TypeError
+  if (!card || !card.type) {
+    console.warn('⚠️ Carte invalide dans enrichCard:', card);
+    return {
+      ...card,
+      image: card?.image || null,
+    };
+  }
+  
   const category = card.type;
   const config = CATEGORY_CONFIG[category];
   

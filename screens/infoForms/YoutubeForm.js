@@ -80,29 +80,22 @@ export default function YoutubeForm({ formData = {}, onChange, onNext, onBack })
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.label}>Titre de la vidéo *</Text>
-      <TextInput
-        placeholder="ex : Pourquoi l'algorithme YouTube t'adore"
-        value={local.title}
-        onChangeText={(t) => handleChange('title', t)}
-        style={styles.input}
-      />
-
-      <Text style={styles.label}>Recommandé par</Text>
-      <TextInput
-        style={styles.input}
-        value={local.recommendedBy}
-        onChangeText={(t) => handleChange("recommendedBy", t)}
-        placeholder="ex : Adrien"
-      />
-
+      {/* Section Lien - En premier */}
+      <Text style={styles.sectionTitle}>🔗 Lien de la vidéo</Text>
+      <Text style={styles.sectionDescription}>
+        Collez un lien YouTube pour récupérer automatiquement les informations et la miniature
+      </Text>
+      
       <LinkInput
         value={local.link}
         onChange={handleLinkChange}
       />
 
       {isLoadingVideoInfo && (
-        <ActivityIndicator size="small" color="#0000ff" style={{ marginTop: 10 }} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#0000ff" />
+          <Text style={styles.loadingText}>Récupération des informations...</Text>
+        </View>
       )}
 
       {local.link && !isValidYouTubeUrl(local.link) && (
@@ -129,6 +122,28 @@ export default function YoutubeForm({ formData = {}, onChange, onNext, onBack })
         </Text>
       )}
 
+      {/* Section Informations - Après le lien */}
+      <Text style={styles.sectionTitle}>📝 Informations de la vidéo</Text>
+      <Text style={styles.sectionDescription}>
+        Ces champs seront automatiquement remplis si vous avez fourni un lien valide
+      </Text>
+
+      <Text style={styles.label}>Titre de la vidéo *</Text>
+      <TextInput
+        placeholder="ex : Pourquoi l'algorithme YouTube t'adore"
+        value={local.title}
+        onChangeText={(t) => handleChange('title', t)}
+        style={styles.input}
+      />
+
+      <Text style={styles.label}>Recommandé par</Text>
+      <TextInput
+        style={styles.input}
+        value={local.recommendedBy}
+        onChangeText={(t) => handleChange("recommendedBy", t)}
+        placeholder="ex : Adrien"
+      />
+
       <Text style={styles.infoText}>
         💡 Si vous ne choisissez pas d'image, la miniature YouTube sera récupérée automatiquement
       </Text>
@@ -148,7 +163,25 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "flex-start",
   },
-  label: { fontSize: 16, fontWeight: 'bold', marginTop: 12 },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 24,
+    marginBottom: 8,
+    color: '#333',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  label: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    marginTop: 12,
+    color: '#333',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#CCC',
@@ -156,6 +189,19 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#FFF',
     marginBottom: 8,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 8,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#0066cc',
+    fontSize: 14,
   },
   errorText: { color: 'red', marginTop: 8 },
   warningText: {

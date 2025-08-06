@@ -14,6 +14,7 @@ import * as Linking from 'expo-linking';
 import imageCache from "../utils/imageCache";
 import { CATEGORY_CONFIG } from "../data/categories";
 import { isValidYouTubeUrl, getAvailableThumbnailFromUrl } from "../utils/youtubeUtils";
+import { getSpotifyImageFromUrl, isValidSpotifyUrl } from "../services/SpotifyImageService";
 
 function hexToRgba(hex, alpha = 1) {
   const normalized = hex.replace("#", "");
@@ -75,13 +76,18 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
           try {
             const cachedUri = await imageCache.cacheImage(item.image);
             setCachedImageUri(cachedUri);
-          } catch (error) {
-            console.log('⚠️ Erreur cache image:', error.message);
-            // En cas d'erreur, ne pas afficher d'image (icône de catégorie sera affichée)
-            setCachedImageUri(null);
-          } finally {
-            setIsLoadingImage(false);
-          }
+                      } catch (error) {
+              console.log('⚠️ Erreur cache image:', error.message);
+              // En cas d'erreur, ne pas afficher d'image (icône de catégorie sera affichée)
+              setCachedImageUri(null);
+              
+              // Retry automatique pour les images Spotify manquantes
+              if (isValidSpotifyUrl(item.link)) {
+                retrySpotifyImage();
+              }
+            } finally {
+              setIsLoadingImage(false);
+            }
         } else {
           // Image locale - utiliser directement
           setCachedImageUri(item.image);
@@ -110,6 +116,11 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
         } else {
           // Pas d'image et pas de carte YouTube - afficher l'icône de catégorie
           setCachedImageUri(null);
+          
+          // Retry automatique pour les images Spotify manquantes
+          if (isValidSpotifyUrl(item.link)) {
+            retrySpotifyImage();
+          }
         }
       }
     };
@@ -149,6 +160,29 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
     return colors[category] || "#CCC";
   };
 
+  // Fonction pour retry automatique l'image Spotify
+  const retrySpotifyImage = async () => {
+    if (!item.link || !isValidSpotifyUrl(item.link)) return;
+    
+    try {
+      console.log('🔄 Retry automatique image Spotify:', item.link);
+      const imageUrl = await getSpotifyImageFromUrl(item.link);
+      
+      if (imageUrl) {
+        // Mettre en cache l'image récupérée
+        const cachedUri = await imageCache.cacheImage(imageUrl);
+        setCachedImageUri(cachedUri);
+        console.log('✅ Image Spotify récupérée avec succès');
+      } else {
+        console.log('⚠️ Aucune image Spotify trouvée');
+        setCachedImageUri(null);
+      }
+    } catch (error) {
+      console.log('❌ Erreur retry automatique image Spotify:', error.message);
+      setCachedImageUri(null);
+    }
+  };
+
   return (
     <TouchableOpacity 
       style={styles.cardContainer}
@@ -178,7 +212,11 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
                 onImageLoad();
               }
             }}
-            onError={(error) => console.log('Erreur image:', error)}
+            onError={(error) => {
+              console.log('⚠️ Erreur affichage image:', error);
+              // En cas d'erreur d'affichage, afficher l'icône de catégorie
+              setCachedImageUri(null);
+            }}
           />
         ) : (
           // Affichage de l'icône de catégorie sur fond blanc
@@ -190,6 +228,7 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
                 color={getCategoryColor(item.type)} 
               />
             </View>
+
           </View>
         )}
 
@@ -246,8 +285,12 @@ export default function ContentCard({ item, onEdit, onDelete, onImageLoad }) {
             )}
             <View style={styles.bottomContainer}>
               {item.recommendedBy && item.recommendedBy.trim() && (
-                <Text style={[styles.recommendedBy, { color: "white" }]}>
-                  Recommandé par {item.recommendedBy}
+                <Text 
+                  style={[styles.recommendedBy, { color: "white" }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  Reco de {item.recommendedBy}
                 </Text>
               )}
               {item.link && (
@@ -373,6 +416,9 @@ const styles = StyleSheet.create({
   },
   recommendedBy: {
     fontSize: 14,
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 10,
   },
   discoverButton: {
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -407,4 +453,5 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     padding: 30,
   },
+
 });

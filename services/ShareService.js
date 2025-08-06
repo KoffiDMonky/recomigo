@@ -19,10 +19,16 @@ export default class ShareService {
    * Crée le contenu JSON d'une carte pour le partage
    */
   static createCardJSON(card) {
+    // Vérification de sécurité pour éviter l'erreur TypeError
+    if (!card) {
+      console.warn('⚠️ Carte invalide dans createCardJSON:', card);
+      return null;
+    }
+    
     return {
       id: card.id,
       title: card.title,
-      type: card.type,
+      type: card.type || 'Inconnu',
       description: card.description,
       director: card.director,
       artist: card.artist,
@@ -40,6 +46,13 @@ export default class ShareService {
    * Partage une carte
    */
   static async shareCard(card) {
+    // Vérification de sécurité pour éviter l'erreur TypeError
+    if (!card || !card.id || !card.title) {
+      console.warn('⚠️ Carte invalide dans shareCard:', card);
+      Alert.alert('Erreur', 'Impossible de partager une carte invalide');
+      return;
+    }
+    
     try {
       const deepLink = this.generateDeepLink(card.id);
       const webLink = this.generateWebLink(card.id);
@@ -65,6 +78,12 @@ export default class ShareService {
    * Affiche les options de partage
    */
   static showShareOptions(card) {
+    // Vérification de sécurité pour éviter l'erreur TypeError
+    if (!card) {
+      console.warn('⚠️ Carte invalide dans showShareOptions:', card);
+      return;
+    }
+    
     // Utiliser directement le partage natif qui propose toutes les options
     this.shareCard(card);
   }

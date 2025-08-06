@@ -91,7 +91,8 @@ export default function HomeScreen() {
   const handleScroll = (event) => {
     const contentOffset = event.nativeEvent.contentOffset.y;
     const index = Math.floor(contentOffset / scrollHeight);
-    if (index !== currentIndex && index >= 0 && index < getFilteredCards().length) {
+    const filteredCards = getFilteredCards();
+    if (index !== currentIndex && index >= 0 && index < filteredCards.length) {
       HapticService.light();
       setCurrentIndex(index);
     }
@@ -160,7 +161,14 @@ export default function HomeScreen() {
   };
 
   const getFilteredCards = () => {
-    const filtered = cards.filter(card => activeFilters[card.type]);
+    const filtered = cards.filter(card => {
+      // Vérification de sécurité pour éviter l'erreur TypeError
+      if (!card || !card.type) {
+        console.warn('⚠️ Carte invalide détectée:', card);
+        return false; // Exclure les cartes invalides
+      }
+      return activeFilters[card.type];
+    });
     return filtered;
   };
 
@@ -227,7 +235,7 @@ export default function HomeScreen() {
   // Réinitialiser currentIndex si nécessaire quand les filtres changent
   useEffect(() => {
     const filteredCards = getFilteredCards();
-    if (currentIndex >= filteredCards.length && filteredCards.length > 0) {
+    if (filteredCards.length > 0 && currentIndex >= filteredCards.length) {
       setCurrentIndex(0);
     }
     // Réinitialiser la hauteur calculée quand les filtres changent
@@ -356,11 +364,20 @@ export default function HomeScreen() {
 
           <View style={styles.header}>
             {getFilteredCards().length > 0 && isHeightCalculated && (
-              <CategoryPill
-                type={enrichCard(getFilteredCards()[currentIndex])?.type}
-                color={enrichCard(getFilteredCards()[currentIndex])?.categoryColor}
-                icon={enrichCard(getFilteredCards()[currentIndex])?.icon}
-              />
+              (() => {
+                const filteredCards = getFilteredCards();
+                const currentCard = filteredCards[currentIndex];
+                if (!currentCard) return null;
+                
+                const enrichedCard = enrichCard(currentCard);
+                return (
+                  <CategoryPill
+                    type={enrichedCard?.type}
+                    color={enrichedCard?.categoryColor}
+                    icon={enrichedCard?.icon}
+                  />
+                );
+              })()
             )}
           </View>
 
@@ -455,6 +472,12 @@ export default function HomeScreen() {
                 getFilteredCards()
                   .filter((item) => !!item && item.type)
                   .map((item, index) => {
+                    // Vérification supplémentaire de sécurité
+                    if (!item || !item.type) {
+                      console.warn('⚠️ Carte invalide dans le mapping:', item);
+                      return null;
+                    }
+                    
                     const hydrated = enrichCard(item);
                     return (
                       <View
@@ -474,6 +497,7 @@ export default function HomeScreen() {
                       </View>
                     );
                   })
+                  .filter(Boolean) // Filtrer les éléments null
               ) : (
                 <View
                   style={[
